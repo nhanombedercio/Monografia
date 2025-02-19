@@ -9,5 +9,19 @@ output: html_document
 # Carregar pacotes necessários
 library(dplyr)
 library(ggplot2)
+
+dados <- dados
+```
+
+ 
+1. Estatísticas Descritivas
+```{r}
+# Criar um dataframe de exemplo
+# Tabela de contagem das variáveis categóricas
+table(dados$sex)
+table(dados$feveryno)
+table(dados$parasitem)
+table(dados$outcome)
+
 ```
 
