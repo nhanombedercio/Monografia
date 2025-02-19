@@ -84,8 +84,139 @@ mediana_yea <- median(dados$yea_birth, na.rm = TRUE)
 dados$day_birth[is.na(dados$day_birth)] <- mediana_day
 dados$mon_birth[is.na(dados$mon_birth)] <- mediana_mon
 dados$yea_birth[is.na(dados$yea_birth)] <- mediana_yea
-
+ 
 # Verificar se os dados foram tratados corretamente
 summary(dados[, c("day_birth", "mon_birth", "yea_birth")])
 ```
  
+## Variavel feveryno (Febre) 
+
+```{r}
+
+# Lista das variáveis a serem transformadas
+variaveis <- c("feveryno","coughyno", "breathyno", "diarryno", "vomityno", "hemoculyno", "mal_tt", "cq", "sp", "aq", "qn", "art")
+
+# Substituir 0 e 9 por NA
+dados[variaveis] <- lapply(dados[variaveis], function(x) {
+  x[x %in% c(0, 9)] <- NA
+  return(x)
+})
+
+# Converter em fator com rótulos apropriados
+dados[variaveis] <- lapply(dados[variaveis], function(x) {
+  factor(x, levels = c(1, 2), labels = c("Sim", "Não"))
+})
+
+```
+
+## Variavel parasitem
+
+```{r}
+# Substituir -9 por NA
+dados$parasitem[dados$parasitem == -9] <- 9
+
+# Converter em fator com rótulos apropriados
+dados$parasitem <- factor(dados$parasitem, 
+                          levels = c(0, 1, 2, 3, 4, 5, 6, 9), 
+                          labels = c("Negativo", "1 cruz", "2 cruzes", "3 cruzes", 
+                                     "4 cruzes", "5 cruzes", "6 cruzes", "Dado perdido"))
+
+
+```
+
+## Variavel resprate
+
+```{r}
+# Definir os limites aceitáveis
+limite_min <- 0
+limite_max <- 100
+
+# Substituir valores fora do intervalo [0, 100] por NA
+dados$resprate[dados$resprate < limite_min | dados$resprate > limite_max] <- NA
+
+# Calcular a mediana dentro dos limites aceitáveis
+mediana_resprate <- median(dados$resprate, na.rm = TRUE)
+
+# Substituir os NAs pela mediana
+dados$resprate[is.na(dados$resprate)] <- mediana_resprate
+```
+
+## Variavel temp
+```{r}
+# Definir os limites aceitáveis
+limite_min <- 35
+limite_max <- 44
+
+# Substituir valores fora do intervalo [35, 44] por NA
+dados$temp[dados$temp < limite_min | dados$temp > limite_max] <- NA
+
+# Calcular a mediana dentro dos limites aceitáveis
+mediana_temp <- median(dados$temp, na.rm = TRUE)
+
+# Substituir os NAs pela mediana
+dados$temp[is.na(dados$temp)] <- mediana_temp
+```
+
+## Variavel heartrate
+```{r}
+# Definir os limites aceitáveis para batimentos cardíacos
+limite_min <- 60
+limite_max <- 200
+
+# Substituir valores fora do intervalo [60, 200] por NA
+dados$heartrate[dados$heartrate < limite_min | dados$heartrate > limite_max] <- NA
+
+# Calcular a mediana dentro dos limites aceitáveis
+mediana_heartrate <- median(dados$heartrate, na.rm = TRUE)
+
+# Substituir os NAs pela mediana
+dados$heartrate[is.na(dados$heartrate)] <- mediana_heartrate
+
+
+```
+
+## Tratamento de NAS
+
+```{r}
+# Função para calcular a moda
+calcular_moda <- function(x) {
+  # Calcular a moda (valor mais frequente)
+  tbl <- table(x)
+  moda <- names(tbl)[which.max(tbl)]
+  return(moda)
+}
+
+# Definir a lista de variáveis categóricas
+cols_categoricas <- c("sex", "feveryno", "coughyno", "breathyno", 
+                      "diarryno", "vomityno", "hemoculyno", "seenwhere", 
+                       "mal_tt", "cq", "sp", "aq", "qn", "art")
+
+# Substituir NAs pela moda em cada variável categórica
+for (col in cols_categoricas) {
+  moda <- calcular_moda(dados[[col]])
+  dados[[col]][is.na(dados[[col]])] <- moda  # Substituir NAs pela moda
+  dados[[col]] <- factor(dados[[col]])  # Garantir que a coluna seja um fator
+}
+
+# Verifique as mudanças
+summary(dados[cols_categoricas])
+```
+
+## Variavel Outcome
+```{r}
+ # Identificar valores válidos
+valores_validos <- c(1, 2, 3, 4)
+
+# Substituir os valores que não são 1, 2, 3 ou 4 por 3
+dados$outcome <- ifelse(dados$outcome %in% valores_validos, dados$outcome, 2)
+
+# Transformar a variável outcome em um fator com os níveis especificados
+dados$outcome <- factor(dados$outcome, levels = c(1, 2, 3, 4), labels = c("Vivo", "Obito", "Abandono", "Transferido"))
+
+# Verificar as mudanças
+summary(dados$outcome)
+
+```
+
+
+
