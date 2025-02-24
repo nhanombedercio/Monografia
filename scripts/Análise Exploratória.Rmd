@@ -10,18 +10,23 @@ output: html_document
 library(dplyr)
 library(ggplot2)
 
+rmarkdown::render("Aquisição e Pré-processamento dos Dados.Rmd")
 dados <- dados
 ```
 
+```{r child="Aquisição e Pré-processamento dos Dados.Rmd"}
+```
+ 
  
 1. Estatísticas Descritivas
 ```{r}
 # Criar um dataframe de exemplo
-# Tabela de contagem das variáveis categóricas
-table(dados$sex)
-table(dados$feveryno)
-table(dados$parasitem)
-table(dados$outcome)
+ # Estatísticas descritivas das variáveis numéricas
+summary(dados)
+
+# Estatísticas detalhadas das variáveis numéricas
+descr(dados, transpose = TRUE)
+
 
 ```
 
