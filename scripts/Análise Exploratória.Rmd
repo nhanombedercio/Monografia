@@ -9,12 +9,25 @@ output: html_document
 # Carregar pacotes necessários
 library(dplyr)
 library(ggplot2)
+library(openxlsx) 
+library(summarytools)
+library(readxl)
+library(ggplot2)
+library(skimr)
+library(corrplot)
+library(Amelia)
 
-rmarkdown::render("Aquisição e Pré-processamento dos Dados.Rmd")
-dados <- dados
-```
+setwd("C:/Users/MUVA/OneDrive - ASSOCIAÇÃO PARA O EMPODERAMENTO DA RAPARIGA-MUVA/Arquivo DERCIO/Monografia/")
+dados_Limpes_INPD <- read_excel("scripts/dados_Limpes_INPD.xlsx")
 
-```{r child="Aquisição e Pré-processamento dos Dados.Rmd"}
+# Passo 1: Substituir -9 por NA
+dados_Limpes_INPD$temp[dados_Limpes_INPD$temp == -9] <- NA
+
+# Passo 3: Substituir NA's pela mediana da temperatura
+dados_Limpes_INPD$temp[is.na(dados_Limpes_INPD$temp)] <- median(dados_Limpes_INPD$temp, na.rm = TRUE)
+
+# Passo 3: Substituir NA's pela mediana da temperatura
+dados_Limpes_INPD$temp[is.na(dados_Limpes_INPD$temp)] <- median(dados_Limpes_INPD$temp, na.rm = TRUE)
 ```
  
  
@@ -22,11 +35,14 @@ dados <- dados
 ```{r}
 # Criar um dataframe de exemplo
  # Estatísticas descritivas das variáveis numéricas
-summary(dados)
+summary(dados_Limpes_INPD)
 
 # Estatísticas detalhadas das variáveis numéricas
-descr(dados, transpose = TRUE)
-
+descr(dados_Limpes_INPD, transpose = TRUE)
 
 ```
+ 
+ 
 
+
+ 

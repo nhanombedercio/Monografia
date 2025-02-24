@@ -12,57 +12,33 @@ output: html_document
 library(tidyverse)
 library(readr)
 library(dplyr)
+library(openxlsx) 
+library(lubridate)
+
+
 
 # Carregar os dados 
 setwd("C:/Users/MUVA/OneDrive - ASSOCIAÇÃO PARA O EMPODERAMENTO DA RAPARIGA-MUVA/Arquivo DERCIO/Monografia/")
+dados <- read_csv("data/Dados_inpd4_limpo.csv")
 
- dados <- read_csv("data/Dados_inpd4_limpo.csv")
+ # Remover a coluna "X" caso exista
+dados <- dados[ , !(names(dados) %in% "X")]
+
+ # Visualizar as primeiras linhas
+head(dados)
+
+# Verificar a estrutura dos dados
+str(dados)
+
+# Verificar se há valores ausentes
+sum(is.na(dados))
+
+# Calcular proporção de valores ausentes por coluna
+colSums(is.na(dados)) / nrow(dados) * 100
 
 ```
 
-# Tratar valores ausentes e inconsistências
-
-```{r}
-# Excluir linhas onde 'perm_id' é NA
-dados <- dados %>%
-  filter(!is.na(perm_id))
-
- 
-# Tratar os valores ausentes nas colunas categoricas 
-# Função para calcular a moda
-moda <- function(x) {
-  uniq_x <- table(x)
-  moda_val <- names(uniq_x)[which.max(uniq_x)]
-  return(moda_val)
-}
-
-summary(dados)
-```
-
-# Vamos fazer tratamento para cada variavel 
-
-## Variavel Sexo
-
-```{r}
-dados$sex <- as.factor(dados$sex)
-summary(dados$sex)  # Verificar se ficou correcto
-
-moda <- names(which.max(table(dados$sex, useNA = "no")))
-dados$sex[is.na(dados$sex)] <- moda
-summary(dados$sex)
-```
-
-## Variavel region_nam
-```{r}
-dados$region_nam <- as.factor(dados$region_nam)
-summary(dados$region_nam)  # Verificar se ficou correcto
-
-moda <- names(which.max(table(dados$region_nam, useNA = "no")))
-dados$region_nam[is.na(dados$region_nam)] <- moda
-summary(dados$region_nam)
-```
-
-## day_birth, mon_birth, yea_birth que foram retirados de data de nascimento
+# day_birth, mon_birth, yea_birth que foram retirados de data de nascimento
 
 ```{r}
 # Substituir -9 por NA
@@ -88,24 +64,99 @@ dados$yea_birth[is.na(dados$yea_birth)] <- mediana_yea
 # Verificar se os dados foram tratados corretamente
 summary(dados[, c("day_birth", "mon_birth", "yea_birth")])
 ```
- 
-## Variavel feveryno (Febre) 
+
+# Calcular idade
 
 ```{r}
+ 
+# Converter a data de nascimento para um formato de data
+dados$birth_date <- as.Date(with(dados, paste(yea_birth, mon_birth, day_birth, sep="-")), format="%Y-%m-%d")
 
-# Lista das variáveis a serem transformadas
-variaveis <- c("feveryno","coughyno", "breathyno", "diarryno", "vomityno", "hemoculyno", "mal_tt", "cq", "sp", "aq", "qn", "art")
+# Converter a data da coleta para formato de data
+dados$date <- as.Date(dados$date, format="%Y-%m-%d")
 
-# Substituir 0 e 9 por NA
-dados[variaveis] <- lapply(dados[variaveis], function(x) {
-  x[x %in% c(0, 9)] <- NA
-  return(x)
-})
+# Calcular a idade corretamente (anos completos)
+dados$idade <- as.integer(interval(dados$birth_date, dados$date) / years(1))
 
-# Converter em fator com rótulos apropriados
-dados[variaveis] <- lapply(dados[variaveis], function(x) {
-  factor(x, levels = c(1, 2), labels = c("Sim", "Não"))
-})
+# TRATAMENTO:
+# - Remover idades negativas e absurdas (ex: idade > 100)
+dados <- dados %>%
+  mutate(idade = ifelse(idade < 0 | idade > 100, NA, idade))
+
+# Calcular a mediana ignorando os NA
+mediana_idade <- median(dados$idade, na.rm = TRUE)
+
+# Substituir os NA pela mediana e idade acima de 15 pela mediana
+dados <- dados %>%
+  mutate(idade = ifelse(is.na(idade), mediana_idade, idade))
+
+dados <- dados %>%
+  mutate(idade = ifelse(idade > 15, mediana_idade, idade))
+
+# Exibir as primeiras idades calculadas
+summary(dados$idade)
+```
+
+
+## Variavel Sexo
+
+```{r}
+dados$sex <- as.factor(dados$sex)
+ 
+
+moda <- names(which.max(table(dados$sex, useNA = "no")))
+dados$sex[is.na(dados$sex)] <- moda
+summary(dados$sex)
+```
+
+## Variavel region_nam
+```{r}
+dados$region_nam <- as.factor(dados$region_nam)
+summary(dados$region_nam)  # Verificar se ficou correcto
+
+moda <- names(which.max(table(dados$region_nam, useNA = "no")))
+dados$region_nam[is.na(dados$region_nam)] <- moda
+summary(dados$region_nam)
+```
+
+ 
+## Variavel feveryno","coughyno", "breathyno", "diarryno","vomityno", "hemoculyno", "mal_tt", "cq", "sp", "aq", "qn", "art"
+```{r}
+ 
+
+# Lista das variáveis categóricas
+variaveis <- c("feveryno","coughyno", "breathyno", "diarryno", 
+               "vomityno", "hemoculyno", "mal_tt", "cq", "sp", "aq", "qn", "art")
+
+# Função para calcular a moda
+moda <- function(x) {
+  x_sem_na <- na.omit(x)
+  if (length(x_sem_na) == 0) return(NA)  # Retorna NA se não houver valores válidos
+  uniq_x <- unique(x_sem_na)
+  return(uniq_x[which.max(tabulate(match(x_sem_na, uniq_x)))])  # Retorna a moda
+}
+
+# Substituir -9, 0 e 9 por NA e depois substituir NA pela moda
+dados <- dados %>%
+  mutate(across(all_of(variaveis), ~ifelse(. %in% c(-9, 0, 9), NA, .))) %>%
+  mutate(across(all_of(variaveis), ~ifelse(is.na(.), moda(.), .)))
+
+# Converter para fator (opcional)
+dados <- dados %>%
+  mutate(across(all_of(variaveis), ~factor(., levels = c(1, 2), labels = c("Sim", "Não"))))
+
+# Substituir -9, 0 e 9 por NA e depois substituir NA pela moda
+dados <- dados %>%
+  mutate(across(all_of(variaveis), ~ifelse(. %in% c(-9, 0, 9), NA, .))) %>%
+  mutate(across(all_of(variaveis), ~ifelse(is.na(.), moda(.), .)))
+
+# Converter para fator (opcional)
+dados <- dados %>%
+  mutate(across(all_of(variaveis), ~factor(., levels = c(1, 2), labels = c("Sim", "Não"))))
+
+# Verificar resultado
+summary(dados[variaveis])
+
 
 ```
 
@@ -113,14 +164,23 @@ dados[variaveis] <- lapply(dados[variaveis], function(x) {
 
 ```{r}
 # Substituir -9 por NA
-dados$parasitem[dados$parasitem == -9] <- 9
+dados$parasitem[dados$parasitem <= -9] <- NA
+dados$parasitem[dados$parasitem >= 9] <- NA
+
+dados$parasitem[dados$parasitem == 7] <- NA
+# Substituir os NA pela moda antes de converter para fator
+moda_parasitem <- moda(dados$parasitem)
+
+dados$parasitem[is.na(dados$parasitem)] <- moda_parasitem
 
 # Converter em fator com rótulos apropriados
 dados$parasitem <- factor(dados$parasitem, 
-                          levels = c(0, 1, 2, 3, 4, 5, 6, 9), 
+                          levels = c(0, 1, 2, 3, 4, 5, 6), 
                           labels = c("Negativo", "1 cruz", "2 cruzes", "3 cruzes", 
-                                     "4 cruzes", "5 cruzes", "6 cruzes", "Dado perdido"))
+                                     "4 cruzes", "5 cruzes", "6 cruzes"))
 
+
+summary(dados$parasitem)
 
 ```
 
@@ -139,6 +199,8 @@ mediana_resprate <- median(dados$resprate, na.rm = TRUE)
 
 # Substituir os NAs pela mediana
 dados$resprate[is.na(dados$resprate)] <- mediana_resprate
+
+summary(dados$resprate)
 ```
 
 ## Variavel temp
@@ -155,6 +217,8 @@ mediana_temp <- median(dados$temp, na.rm = TRUE)
 
 # Substituir os NAs pela mediana
 dados$temp[is.na(dados$temp)] <- mediana_temp
+
+summary(dados$temp)
 ```
 
 ## Variavel heartrate
@@ -172,7 +236,7 @@ mediana_heartrate <- median(dados$heartrate, na.rm = TRUE)
 # Substituir os NAs pela mediana
 dados$heartrate[is.na(dados$heartrate)] <- mediana_heartrate
 
-
+summary(dados$heartrate)
 ```
 
 ## Tratamento de NAS
@@ -201,6 +265,48 @@ for (col in cols_categoricas) {
 # Verifique as mudanças
 summary(dados[cols_categoricas])
 ```
+```{r}
+
+
+
+```
+
+# Variaveis Numericas 
+```{r}
+ 
+
+# Lista das variáveis a tratar
+variaveis_tratar <- c("diarrnum", "fever_days", "vomitdays", "cough_days")
+
+# Passo 1: Substituir -9 por NA
+dados[variaveis_tratar] <- lapply(dados[variaveis_tratar], function(x) {
+  x[x == -9] <- NA
+  return(x)
+})
+
+# Função para remover outliers pelo método do IQR
+remover_outliers <- function(x) {
+  q1 <- quantile(x, 0.25, na.rm = TRUE)
+  q3 <- quantile(x, 0.75, na.rm = TRUE)
+  iqr <- q3 - q1
+  x[x < (q1 - 1.5 * iqr) | x > (q3 + 1.5 * iqr)] <- NA
+  return(x)
+}
+
+# Aplicar a remoção de outliers para cada variável
+dados <- dados %>%
+  mutate(across(all_of(variaveis_tratar), remover_outliers))
+
+# Passo 2: Substituir NA's pela mediana
+for (var in variaveis_tratar) {
+  dados[[var]][is.na(dados[[var]])] <- median(dados[[var]], na.rm = TRUE)
+}
+
+# Verificar os dados após tratamento
+summary(dados[variaveis_tratar])
+
+
+```
 
 ## Variavel Outcome
 ```{r}
@@ -215,6 +321,8 @@ dados$outcome <- factor(dados$outcome, levels = c(1, 2, 3, 4), labels = c("Vivo"
 
 # Verificar as mudanças
 summary(dados$outcome)
+
+write.xlsx(dados, "dados_Limpes_INPD.xlsx")
 
 ```
 
